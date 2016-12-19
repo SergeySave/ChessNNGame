@@ -32,6 +32,14 @@ repositories {
 	mavenCentral()
 }
 
+sourceSets {
+    main {
+        java {
+            srcDirs 'NeuralNetwork/src'
+        }
+    }
+}
+
 dependencies {
 	// LWJGL dependencies START
 	compile "org.lwjgl:lwjgl:${lwjglVersion}"
