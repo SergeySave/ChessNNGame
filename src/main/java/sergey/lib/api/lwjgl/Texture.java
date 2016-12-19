@@ -21,14 +21,14 @@ public class Texture {
 		int[] components = new int[1];
 
 		STBImage.stbi_set_flip_vertically_on_load(flipV);
-		ByteBuffer pixels = STBImage.stbi_load(path, width, height, components, 3);
+		ByteBuffer pixels = STBImage.stbi_load(path, width, height, components, type.components);
 
 		this.width = width[0];
 		this.height = height[0];
 		this.components = components[0];
 
 		GL11.glBindTexture(GL11.GL_TEXTURE_2D, textureID);
-		GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, type.format, width[0], height[0], 0, type.format, GL11.GL_UNSIGNED_BYTE, pixels);
+		GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, type.gl_format, width[0], height[0], 0, type.texture_format, GL11.GL_UNSIGNED_BYTE, pixels);
 
 		if (genMipMap) GL30.glGenerateMipmap(GL11.GL_TEXTURE_2D);
 
@@ -68,15 +68,17 @@ public class Texture {
 	}
 
 	public enum Type {
-		RGB(GL11.GL_RGB, 3),
-		RGBA(GL11.GL_RGBA, 4);
+		RGB(GL11.GL_RGB, GL11.GL_RGB, 3),
+		RGBA(GL11.GL_RGBA, GL11.GL_RGBA, 4);
 
-		public final int format;
+		public final int gl_format;
+		public final int texture_format;
 		public final int components;
 
-		private Type(int format, int comp) {
-			this.format = format;
-			components = comp;
+		private Type(int gl_format, int texture_format, int comp) {
+			this.gl_format = gl_format;
+			this.texture_format = texture_format;
+			this.components = comp;
 		}
 	}
 }

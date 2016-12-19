@@ -19,6 +19,9 @@ public abstract class WindowApplication {
 	private int width;
 	private int height;
 	
+	private double mouseX;
+	private double mouseY;
+	
 	public final void initialize(int widthSet, int heightSet) {
 		keysJustDown = new HashSet<>();
 		mouseJustDown = new HashSet<>();
@@ -146,6 +149,12 @@ public abstract class WindowApplication {
 				mouseJustReleased.add(button);
 			}
 		});
+		
+		GLFW.glfwSetCursorPosCallback(window, (w,x,y)->{
+			mouseX = x;
+			mouseY = y;
+			handleMouseMove(x, y);
+		});
 
 		// Get the resolution of the primary monitor
 		GLFWVidMode vidmode = GLFW.glfwGetVideoMode(GLFW.glfwGetPrimaryMonitor());
@@ -199,6 +208,8 @@ public abstract class WindowApplication {
 		return false;
 	}
 	
+	protected void handleMouseMove(double x, double y) {}
+	
 	public boolean isKeyDown(int key) {
 		return GLFW.glfwGetKey(window, key) == GLFW.GLFW_PRESS;
 	}
@@ -231,6 +242,14 @@ public abstract class WindowApplication {
 	
 	public int getHeight() {
 		return height;
+	}
+	
+	public double getMouseX() {
+		return mouseX;
+	}
+	
+	public double getMouseY() {
+		return mouseY;
 	}
 	
 	public abstract void create();

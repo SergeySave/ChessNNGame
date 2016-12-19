@@ -120,7 +120,6 @@ public class MeshBuilder {
 	public Mesh create(ShaderProgram shader) {
 		Mesh mesh = new Mesh();
 		mesh.setDrawingMode(mode.glMode);
-		mesh.setShader(shader);
 		
 		if (vertexData == null) {
 			vertexData = ArrayUtil.stringCollectionData(verticies, totalComponents);
@@ -132,6 +131,8 @@ public class MeshBuilder {
 		}
 		mesh.setElementBuffer(indexData, GLDataType.STATIC);
 		
+		mesh.setShader(shader);
+	
 		return mesh;
 	}
 }
