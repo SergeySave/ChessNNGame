@@ -1,5 +1,7 @@
 ## Java
 
+ai.store
+
 *.class
 *.war
 *.ear

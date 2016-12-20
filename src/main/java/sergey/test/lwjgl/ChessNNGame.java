@@ -16,7 +16,9 @@ import sergey.lib.api.lwjgl.gl.VertexDataDef;
 import sergey.lib.api.lwjgl.gl.util.GLUtil;
 import sergey.lib.api.lwjgl.mesh.Mesh;
 import sergey.lib.api.math.Vector4f;
+import sergeysav.neuralnetwork.NeuralNetwork;
 import sergeysav.neuralnetwork.chess.ChessBoard;
+import sergeysav.neuralnetwork.chess.ChessStore;
 
 public class ChessNNGame extends WindowApplication {
 
@@ -30,7 +32,7 @@ public class ChessNNGame extends WindowApplication {
 
 	private int fromX = -1;
 	private int fromY;
-	
+
 	private boolean whiteTeamMoving = true;
 
 	private final Vector4f NO_TINT = new Vector4f(0,0,0,0);
@@ -38,10 +40,21 @@ public class ChessNNGame extends WindowApplication {
 	private final Vector4f HIGHLIGHT_TINT = new Vector4f(0,1f,0,0.4f);
 	private final Vector4f BOTH_TINT = new Vector4f(1f,1f,0,0.4f);
 	private final Vector4f LEGAL_TINT = new Vector4f(0f,0f,1f,0.4f);
+	
+	private final Vector4f AI_FROM_TINT = new Vector4f(1f,0f,1f,0.4f); //Purplish
+	private final Vector4f AI_TO_TINT = new Vector4f(0f,1f,1f,0.4f); //Cyanish
+
+	private String aiMove = null;
+	private NeuralNetwork ai;
 
 	@Override
 	public void create() {
+		ai = ChessStore.load(new File("ai.store")).network;
+		ai.init();
+
 		board = new ChessBoard();
+		
+		aiMove = getAIOutput();
 
 		GL11.glClearColor(1f, 1f, 1f, 1.0f);
 
@@ -76,7 +89,7 @@ public class ChessNNGame extends WindowApplication {
 		for (int i = 0; i<8; i++) {
 			for (int j = 0; j<8; j++) {
 				int piece = board.getPieceAt(i, j);
-				GLUtil.setUniform(shaderProgram.getUniform("u_tint"), (fromX == xGrid && fromY == yGrid && fromX == j && fromY == i ? BOTH_TINT : (fromX == j && fromY == i ? FROM_TINT : (xGrid == j && yGrid == i ? HIGHLIGHT_TINT : fromX > -1 && board.isLegalMove(fromY + "" + fromX, i + "" + j) ? LEGAL_TINT : NO_TINT))));
+				GLUtil.setUniform(shaderProgram.getUniform("u_tint"), (fromX == xGrid && fromY == yGrid && fromX == j && fromY == i ? BOTH_TINT : (fromX == j && fromY == i ? FROM_TINT : (xGrid == j && yGrid == i ? HIGHLIGHT_TINT : (aiMove.substring(0,1).equals(i+"") && aiMove.substring(1,2).equals(j+"") ? AI_FROM_TINT : (aiMove.substring(3,4).equals(i+"") && aiMove.substring(4,5).equals(j+"") ? AI_TO_TINT : fromX > -1 && board.isLegalMove(fromY + "" + fromX, i + "" + j) ? LEGAL_TINT : NO_TINT))))));
 				GL20.glUniform1f(shaderProgram.getUniform("u_team"), (i + j) % 2 == 0 ? 1 : 0);
 				GL20.glUniform1f(shaderProgram.getUniform("u_type"), 0);
 				tiles[i][j].draw();
@@ -152,13 +165,87 @@ public class ChessNNGame extends WindowApplication {
 		}
 		return super.handleMouseInput(button, action, mods);
 	}
-	
+
 	private boolean tryMove(int fX, int fY, int tX, int tY) {
 		if ((whiteTeamMoving ? board.getPieceAt(fY, fX) > 0 : board.getPieceAt(fY, fX) < 0) && board.isLegalMove(fY + "" + fX, tY + "" + tX)) {
 			board.applyConvertedMove(fromY + "" + fromX + ";" + tY + "" + tX + ";" + board.getPieceAt(fromY, fromX));
 			whiteTeamMoving = !whiteTeamMoving;
+			System.out.println();
+			aiMove = getAIOutput();
 			return true;
 		}
 		return false;
+	}
+
+	private String getAIOutput() {
+		double[] outputs = ai.testAll(board.generateNeuralInputs(whiteTeamMoving));
+		int fX = -1;
+		int fY = -1;
+		int tX = -1;
+		int tY = -1;
+		int type = -1;
+		if (whiteTeamMoving) {
+			double v = -1;
+			for (int i = 0; i<8; i++) {
+				for (int j = 0; j<8; j++) {
+					if (outputs[8*i + j] > v) {
+						fX = i;
+						fY = j;
+						v = outputs[8*i + j];
+					}
+				}
+			}
+			System.out.println("From: " + fX + " " + fY + " @ " + v);
+			
+			v = -1;
+			for (int i = 0; i<8; i++) {
+				for (int j = 0; j<8; j++) {
+					if (outputs[8*i + j + 64] > v) {
+						tX = i;
+						tY = j;
+						v = outputs[8*i + j + 64];
+					}
+				}
+			}
+			System.out.println("To: " + tX + " " + tY + " @ " + v);
+		} else {
+			double v = -1;
+			for (int i = 0; i<8; i++) {
+				for (int j = 0; j<8; j++) {
+					if (outputs[8*(7-i) + j] > v) {
+						fX = i;
+						fY = j;
+						v = outputs[8*(7-i) + j];
+					}
+				}
+			}
+			System.out.println("From: " + fX + " " + fY + " @ " + v);
+			
+			v = -1;
+			for (int i = 0; i<8; i++) {
+				for (int j = 0; j<8; j++) {
+					if (outputs[8*(7-i) + j + 64] > v) {
+						tX = i;
+						tY = j;
+						v = outputs[8*(7-i) + j + 64];
+					}
+				}
+			}
+			System.out.println("To: " + tX + " " + tY + " @ " + v);
+		}
+		{
+			double v = -1;
+			for (int i = 128; i<134; i++) {
+				if (outputs[i] > v) {
+					v = outputs[i];
+					type= i-127;
+				}
+			}
+			
+			if (!whiteTeamMoving) type *= -1;
+			
+			System.out.println("Type: " + type + " @ " + v);
+		}
+		return fX + "" + fY + ";" + tX + "" + tY + ";" + type;
 	}
 }
