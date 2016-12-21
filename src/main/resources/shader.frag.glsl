@@ -11,7 +11,7 @@ void main()
 {
     vec4 color = texture(u_texture, v_texCoord);
 
-    if (color.a == 0) {
+    if (color.a < 0.99) {
      discard;
     }
 
