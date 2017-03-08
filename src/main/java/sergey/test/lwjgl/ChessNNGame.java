@@ -325,6 +325,17 @@ public class ChessNNGame extends WindowApplication {
 
 			System.out.println("Type: " + type + " @ " + v);
 		}
-		return fX + "" + fY + ";" + tX + "" + tY + ";" + type;
+		String move = fX + "" + fY + ";" + tX + "" + tY + ";" + type;
+		if (!whiteTeamMoving && board.isLegalMove(fX + "" + fY, tX + "" + tY) && board.getPieceAt(fX, fY) < 0) {
+			board.applyConvertedMove(move);
+			whiteTeamMoving = !whiteTeamMoving;
+			System.out.println();
+			return getAIOutput();
+
+			//tryMove(fX, fY, tX, tY);
+			//board.applyConvertedMove(move);
+			//aiMove = getAIOutput();
+		}
+		return move;
 	}
 }
