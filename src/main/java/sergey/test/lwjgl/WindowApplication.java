@@ -178,7 +178,7 @@ public abstract class WindowApplication {
 		// LWJGL detects the context that is current in the current thread,
 		// creates the GLCapabilities instance and makes the OpenGL
 		// bindings available for use.
-		GL.createCapabilities(false);
+		GL.createCapabilities(true);
 	}
 	
 	/**

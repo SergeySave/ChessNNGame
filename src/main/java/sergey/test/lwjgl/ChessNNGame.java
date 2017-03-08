@@ -1,6 +1,7 @@
 package sergey.test.lwjgl;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.net.URISyntaxException;
 
 import org.lwjgl.glfw.GLFW;
@@ -17,6 +18,7 @@ import sergey.lib.api.lwjgl.gl.util.GLUtil;
 import sergey.lib.api.lwjgl.mesh.Mesh;
 import sergey.lib.api.math.Vector4f;
 import sergeysav.neuralnetwork.NeuralNetwork;
+import sergeysav.neuralnetwork.Neuron;
 import sergeysav.neuralnetwork.chess.ChessBoard;
 import sergeysav.neuralnetwork.chess.ChessStore;
 
@@ -40,7 +42,7 @@ public class ChessNNGame extends WindowApplication {
 	private final Vector4f HIGHLIGHT_TINT = new Vector4f(0,1f,0,0.4f);
 	private final Vector4f BOTH_TINT = new Vector4f(1f,1f,0,0.4f);
 	private final Vector4f LEGAL_TINT = new Vector4f(0f,0f,1f,0.4f);
-	
+
 	private final Vector4f AI_FROM_TINT = new Vector4f(1f,0f,1f,0.4f); //Purplish
 	private final Vector4f AI_TO_TINT = new Vector4f(0f,1f,1f,0.4f); //Cyanish
 
@@ -54,6 +56,31 @@ public class ChessNNGame extends WindowApplication {
 
 		board = new ChessBoard();
 		
+		try {
+			PrintWriter writer = new PrintWriter(new File("NeuralNet.txt"));
+
+			Neuron[][] data = ai.getNeuralData();
+			for (int i = 0; i<data.length; i++) {
+				for (int j = 0; j<data[i].length; j++) {
+					writer.print("[");
+					for (int k = 0; k<data[i][j].getWeights().length; k++) {
+						if (k == data[i][j].getWeights().length-1) {
+							writer.print(String.format("%18.14f", data[i][j].getWeights()[k]));
+						} else {
+							writer.print(String.format("%18.14f, ", data[i][j].getWeights()[k]));
+						}
+					}
+					writer.print("] " + data[i][j].getBias() + "\n");
+				}
+				writer.println();
+			}
+
+			writer.flush();
+			writer.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		aiMove = getAIOutput();
 
 		GL11.glClearColor(1f, 1f, 1f, 1.0f);
@@ -170,6 +197,7 @@ public class ChessNNGame extends WindowApplication {
 		if ((whiteTeamMoving ? board.getPieceAt(fY, fX) > 0 : board.getPieceAt(fY, fX) < 0) && board.isLegalMove(fY + "" + fX, tY + "" + tX)) {
 			board.applyConvertedMove(fromY + "" + fromX + ";" + tY + "" + tX + ";" + board.getPieceAt(fromY, fromX));
 			whiteTeamMoving = !whiteTeamMoving;
+			//System.out.println(Arrays.toString(board.generateNeuralInputs(whiteTeamMoving)));
 			System.out.println();
 			aiMove = getAIOutput();
 			return true;
@@ -178,7 +206,58 @@ public class ChessNNGame extends WindowApplication {
 	}
 
 	private String getAIOutput() {
-		double[] outputs = ai.testAll(board.generateNeuralInputs(whiteTeamMoving));
+		double[] outputs;
+		try { //ai.testAll with printing stuffs added
+			
+			int digits = 4;
+			String formatStr = "%" + (digits + 4) + "." + digits + "f";
+			
+			PrintWriter writer = new PrintWriter(new File("NeuronValues.txt"));
+			
+			//Define an array that represents the last layer that was evaluated
+			System.out.println(whiteTeamMoving);
+			double[] lastLayer = board.generateNeuralInputs(whiteTeamMoving);
+			
+			writer.print("[");
+			for (int i = 0; i<lastLayer.length; i++) {
+				writer.print(String.format(formatStr, lastLayer[i]));
+				if (i < lastLayer.length-2) {
+					writer.print(", ");
+				}
+			}
+			writer.println("]");
+
+
+			//Loop through each layer of neurons
+			for (int i = 0; i<ai.getNeuralData().length; i++) {
+				//Create an array representing the outputs of this layer
+				double[] newLayer = new double[ai.getNeuralData()[i].length];
+
+				//Loop through each neuron in this layer
+				writer.print("[");
+				for (int j = 0; j<newLayer.length; j++) {
+					//Evaluate the given neuron using the values of the previous layer
+					newLayer[j] = ai.getNeuralData()[i][j].getOutput(lastLayer);
+					
+					writer.print(String.format(formatStr, newLayer[j]));
+					if (i < newLayer.length-2) {
+						writer.print(", ");
+					}
+				}
+				writer.println("]");
+
+				//Set the current layer as the last layer calculated
+				lastLayer = newLayer;
+			}
+			outputs = lastLayer;
+			
+			writer.flush();
+			writer.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return "";
+		}
+		//double[] outputs = ai.testAll();
 		int fX = -1;
 		int fY = -1;
 		int tX = -1;
@@ -196,7 +275,7 @@ public class ChessNNGame extends WindowApplication {
 				}
 			}
 			System.out.println("From: " + fX + " " + fY + " @ " + v);
-			
+
 			v = -1;
 			for (int i = 0; i<8; i++) {
 				for (int j = 0; j<8; j++) {
@@ -220,7 +299,7 @@ public class ChessNNGame extends WindowApplication {
 				}
 			}
 			System.out.println("From: " + fX + " " + fY + " @ " + v);
-			
+
 			v = -1;
 			for (int i = 0; i<8; i++) {
 				for (int j = 0; j<8; j++) {
@@ -241,9 +320,9 @@ public class ChessNNGame extends WindowApplication {
 					type= i-127;
 				}
 			}
-			
+
 			if (!whiteTeamMoving) type *= -1;
-			
+
 			System.out.println("Type: " + type + " @ " + v);
 		}
 		return fX + "" + fY + ";" + tX + "" + tY + ";" + type;
